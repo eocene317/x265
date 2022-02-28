@@ -602,7 +602,7 @@ ret:
 
                 if (m_cliopt.framesToBeEncoded && inFrameCount >= m_cliopt.framesToBeEncoded)
                     pic_in = NULL;
-                else if (readPicture(pic_in))
+                else if (readPicture(pic_in)) // ¥”ª∫¥Ê∂¡»°“ª÷°Õº∆¨
                     inFrameCount++;
                 else
                     pic_in = NULL;

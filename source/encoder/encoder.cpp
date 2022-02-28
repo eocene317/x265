@@ -1570,7 +1570,7 @@ void Encoder::findSceneCuts(x265_picture *pic, bool& bDup, double maxUVSad, doub
 }
 
 /**
- * Feed one new input frame into the encoder, get one frame out. If pic_in is
+ * Feed one new input frame into the encoder, get one frame out.(!!!not same frame) If pic_in is
  * NULL, a flush condition is implied and pic_in must be NULL for all subsequent
  * calls for this encoder instance.
  *
