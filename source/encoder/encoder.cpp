@@ -46,6 +46,10 @@
 #pragma warning(disable: 4996) // POSIX functions are just fine, thanks
 #endif
 
+#if EXTRACT_LOOKAHEAD_OFFSET || USE_LOOKAHEAD_OFFSET
+extern FILE* lookaheadOffsetFile;
+#endif
+
 namespace X265_NS {
 const char g_sliceTypeToChar[] = {'B', 'P', 'I'};
 
@@ -350,7 +354,7 @@ void Encoder::create()
     if (pools)
     {
         m_lookahead->m_jpId = lookAheadThreadPool[0].m_numProviders++;
-        lookAheadThreadPool[0].m_jpTable[m_lookahead->m_jpId] = m_lookahead;
+        lookAheadThreadPool[0].m_jpTable[m_lookahead->m_jpId] = m_lookahead; // 这一步将lookAheadThreadPool和m_lookahead进行了绑定，从而唤醒线程池进行处理的时候，调用的是m_lookahead中的findJob函数
     }
     if (m_param->lookaheadThreads > 0)
         for (int i = 0; i < pools; i++)
@@ -2239,7 +2243,31 @@ int Encoder::encode(const x265_picture* pic_in, x265_picture* pic_out)
         /* pop a single frame from decided list, then provide to frame encoder
          * curEncoder is guaranteed to be idle at this point */
         if (!pass)
-            frameEnc = m_lookahead->getDecidedPicture();
+            frameEnc = m_lookahead->getDecidedPicture(); // 从m_outputQueue
+#if EXTRACT_LOOKAHEAD_OFFSET
+       /*按照poc和offset数组顺序排列*/
+        if (frameEnc) {
+            Lowres low = frameEnc->m_lowres;
+            int poc = frameEnc->m_poc;
+            double* qpoffset = low.qpCuTreeOffset;
+            int cuCount = low.maxBlocksInRow * low.maxBlocksInCol;
+            int cuCountFullRes = (m_param->rc.qgSize > 8) ? cuCount : cuCount << 2;
+            fwrite(&poc, sizeof(int), 1, lookaheadOffsetFile);
+            fwrite(qpoffset, sizeof(double), cuCountFullRes, lookaheadOffsetFile);
+        }
+#endif
+
+#if USE_LOOKAHEAD_OFFSET
+        if (frameEnc) {
+            Lowres low = frameEnc->m_lowres;
+            int poc = frameEnc->m_poc;
+            double* qpoffset = low.qpCuTreeOffset;
+            int cuCount = low.maxBlocksInRow * low.maxBlocksInCol;
+            int cuCountFullRes = (m_param->rc.qgSize > 8) ? cuCount : cuCount << 2;
+            fseek(lookaheadOffsetFile, 8 + (cuCountFullRes * sizeof(double) + 4) * poc + 4, SEEK_SET);
+            fread(low.qpCuTreeOffset, sizeof(double), cuCountFullRes, lookaheadOffsetFile);
+        }
+#endif
         if (frameEnc && !pass && (!m_param->chunkEnd || (m_encodedFrameNum < m_param->chunkEnd)))
         {
             if (m_param->bEnableSceneCutAwareQp && m_param->rc.bStatRead)

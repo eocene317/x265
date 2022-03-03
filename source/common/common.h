@@ -42,6 +42,9 @@
 
 #include "x265.h"
 
+#define EXTRACT_LOOKAHEAD_OFFSET 0
+#define USE_LOOKAHEAD_OFFSET 1
+
 #if ENABLE_PPA && ENABLE_VTUNE
 #error "PPA and VTUNE cannot both be enabled. Disable one of them."
 #endif

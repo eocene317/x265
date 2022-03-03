@@ -47,6 +47,10 @@ using namespace X265_NS;
 
 #define X265_HEAD_ENTRIES 3
 
+#if EXTRACT_LOOKAHEAD_OFFSET || USE_LOOKAHEAD_OFFSET
+FILE* lookaheadOffsetFile;
+#endif
+
 #ifdef _WIN32
 #define strdup _strdup
 #endif

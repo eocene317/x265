@@ -31,6 +31,9 @@
 #define START_CODE 0x00000001
 #define START_CODE_BYTES 4
 
+#if EXTRACT_LOOKAHEAD_OFFSET || USE_LOOKAHEAD_OFFSET
+extern FILE* lookaheadOffsetFile;
+#endif
 #ifdef __cplusplus
 namespace X265_NS {
 #endif
@@ -399,6 +402,10 @@ namespace X265_NS {
         dolbyVisionRpu = NULL;
         if (output)
             output->release();
+#if EXTRACT_LOOKAHEAD_OFFSET || USE_LOOKAHEAD_OFFSET
+        if (lookaheadOffsetFile)
+            fclose(lookaheadOffsetFile);
+#endif
         output = NULL;
     }
 
@@ -713,6 +720,25 @@ namespace X265_NS {
                     if (!this->zoneFile)
                         x265_log_file(param, X265_LOG_ERROR, "%s zone file not found or error in opening zone file\n", optarg);
                 }
+#if EXTRACT_LOOKAHEAD_OFFSET
+                OPT("offsetfile")
+                {
+                    lookaheadOffsetFile = fopen(optarg, "wb");
+                    if (!lookaheadOffsetFile) {
+                        x265_log_file(param, X265_LOG_ERROR, "%s lookaheadOffsetFile file cannot be created\n", optarg);
+                    }
+                }
+#endif
+
+#if USE_LOOKAHEAD_OFFSET
+                OPT("offsetfile")
+                {
+                    lookaheadOffsetFile = fopen(optarg, "rb");
+                    if (!lookaheadOffsetFile) {
+                        x265_log_file(param, X265_LOG_ERROR, "%s lookaheadOffsetFile file cannot be read\n", optarg);
+                    }
+                }
+#endif
                 OPT("fullhelp")
                 {
                     param->logLevel = X265_LOG_FULL;

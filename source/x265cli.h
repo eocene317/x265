@@ -354,6 +354,9 @@ static const struct option long_options[] =
     { "frame-dup",            no_argument, NULL, 0 },
     { "no-frame-dup", no_argument, NULL, 0 },
     { "dup-threshold", required_argument, NULL, 0 },
+#if EXTRACT_LOOKAHEAD_OFFSET || USE_LOOKAHEAD_OFFSET
+    { "offsetfile", required_argument, NULL, 0 },
+#endif
 #ifdef SVT_HEVC
     { "svt",     no_argument, NULL, 0 },
     { "no-svt",  no_argument, NULL, 0 },

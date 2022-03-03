@@ -441,6 +441,7 @@ void LookaheadTLD::xPreanalyze(Frame* curFrame)
     }
 }
 
+// 空域的AQ
 void LookaheadTLD::calcAdaptiveQuantFrame(Frame *curFrame, x265_param* param)
 {
     /* Actual adaptive quantization */
@@ -1149,7 +1150,7 @@ void Lookahead::addPicture(Frame& curFrame, int sliceType)
     }
     else
     {
-        checkLookaheadQueue(m_inputCount);
+        checkLookaheadQueue(m_inputCount); // 插入之前检查队列是否满了，满了就要进行
         curFrame.m_lowres.sliceType = sliceType;
         addPicture(curFrame);
     }
@@ -1177,7 +1178,7 @@ void Lookahead::checkLookaheadQueue(int &frameCnt)
 
     m_inputLock.acquire();
     if (m_pool && m_inputQueue.size() >= m_fullQueueSize)
-        tryWakeOne();
+        tryWakeOne(); // 当m_inputQueue达到最大长度，唤醒一个进程进行帧类型决策
     m_inputLock.release();
 }
 
@@ -1392,8 +1393,8 @@ void PreLookaheadGroup::processTasks(int workerThreadID)
         m_lock.release();
         preFrame->m_lowres.init(preFrame->m_fencPic, preFrame->m_poc);
         if (m_lookahead.m_bAdaptiveQuant)
-            tld.calcAdaptiveQuantFrame(preFrame, m_lookahead.m_param);
-        tld.lowresIntraEstimate(preFrame->m_lowres, m_lookahead.m_param->rc.qgSize);
+            tld.calcAdaptiveQuantFrame(preFrame, m_lookahead.m_param); //空域AQ
+        tld.lowresIntraEstimate(preFrame->m_lowres, m_lookahead.m_param->rc.qgSize); //计算低分辨率的帧内编码的satd cost
         preFrame->m_lowresInit = true;
 
         m_lock.acquire();
@@ -1416,6 +1417,7 @@ void Lookahead::slicetypeDecide()
         ScopedLock lock(m_inputLock);
 
         Frame *curFrame = m_inputQueue.first();
+        // 队列转为数组
         int j;
         for (j = 0; j < m_param->bframes + 2; j++)
         {
@@ -1424,6 +1426,7 @@ void Lookahead::slicetypeDecide()
             curFrame = curFrame->m_next;
         }
 
+        // 队列转数组（低分辨率）
         curFrame = m_inputQueue.first();
         frames[0] = m_lastNonB;
         for (j = 0; j < maxSearch; j++)
@@ -1441,6 +1444,7 @@ void Lookahead::slicetypeDecide()
     }
 
     /* perform pre-analysis on frames which need it, using a bonded task group */
+    /* 预分析主要工作有两个，第一个是空域的AQ，第二个是对低分辨率图像计算帧内satd cost */
     if (pre.m_jobTotal)
     {
         if (m_pool)
@@ -1497,6 +1501,15 @@ void Lookahead::slicetypeDecide()
         }
     }
 
+
+    /* 必备条件：m_lastNonB非空
+       下面条件满足其一：
+       (1) bFrameAdaptive非0且bframes非0
+       (2) cutree开启
+       (3) scenecutThreshold非0
+       (4) bHistBasedSceneCut非0
+       (5) lookaheadDepth非0且vbvBufferSize非0
+    */  
     if (m_lastNonB &&
         ((m_param->bFrameAdaptive && m_param->bframes) ||
          m_param->rc.cuTree || m_param->scenecutThreshold || m_param->bHistBasedSceneCut ||
@@ -1547,7 +1560,7 @@ void Lookahead::slicetypeDecide()
                 (frm.frameNum == (m_param->chunkStart - 1)) || (frm.frameNum == m_param->chunkEnd))
             {
                 if (frm.sliceType == X265_TYPE_AUTO || frm.sliceType == X265_TYPE_I)
-                    frm.sliceType = m_param->bOpenGOP && m_lastKeyframe >= 0 ? X265_TYPE_I : X265_TYPE_IDR;
+                    frm.sliceType = m_param->bOpenGOP && m_lastKeyframe >= 0 ? X265_TYPE_I : X265_TYPE_IDR; // 这里插I帧
                 bool warn = frm.sliceType != X265_TYPE_IDR;
                 if (warn && m_param->bOpenGOP)
                     warn &= frm.sliceType != X265_TYPE_I;
@@ -2824,7 +2837,7 @@ void Lookahead::computeCUTreeQpOffset(Lowres *frame, double averageDuration, int
                         }
                     }
 
-                    double qp_offset = (m_cuTreeStrength * log2_ratio) / blockXY;
+                    double qp_offset = (m_cuTreeStrength * log2_ratio) / blockXY; //qp_offset
 
                     *pcCuTree = *pcQP - qp_offset;
                 }

@@ -34,6 +34,7 @@
 
 using namespace X265_NS;
 
+extern FILE* lookaheadOffsetFile;
 /* Ctrl-C handler */
 static volatile sig_atomic_t b_ctrl_c /* = 0 */;
 static void sigint_handler(int)
@@ -498,7 +499,16 @@ ret:
     void PassEncoder::threadMain()
     {
         THREAD_NAME("PassEncoder", m_id);
-
+#if EXTRACT_LOOKAHEAD_OFFSET
+        /*头部写入宽高信息*/
+        int width = m_param->sourceWidth;
+        int height = m_param->sourceHeight;
+        int maxBlocksInRow = (width / 2 + X265_LOWRES_CU_SIZE - 1) >> X265_LOWRES_CU_BITS;
+        int maxBlocksInCol = (height / 2 + X265_LOWRES_CU_SIZE - 1) >> X265_LOWRES_CU_BITS;
+        fwrite(&maxBlocksInRow, sizeof(int), 1, lookaheadOffsetFile);
+        fwrite(&maxBlocksInCol, sizeof(int), 1, lookaheadOffsetFile);
+        printf("write header\n");
+#endif
         while (m_threadActive)
         {
 
